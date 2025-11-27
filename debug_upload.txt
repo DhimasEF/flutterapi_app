@@ -1,0 +1,13 @@
+Array
+(
+    [images] => Array
+        (
+            [name] => peakpx (1).jpg
+            [full_path] => peakpx (1).jpg
+            [type] => image/jpeg
+            [tmp_name] => C:\xampp\tmp\phpEF21.tmp
+            [error] => 0
+            [size] => 817368
+        )
+
+)
