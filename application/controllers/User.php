@@ -73,4 +73,31 @@ class User extends CI_Controller {
             ]);
         }
     }
+
+    public function uplofile($id_user){
+    // Ambil user data
+    $user = $this->db->get_where('users', ['id_user' => $id_user])->row_array();
+
+    if (!$user) {
+        echo json_encode([
+            "success" => false,
+            "message" => "User tidak ditemukan"
+        ]);
+        return;
+    }
+
+    // Hitung total artwork user
+    $this->db->where('id_user', $id_user);
+        $totalArtwork = $this->db->count_all_results('artworks');
+
+        echo json_encode([
+            "success" => true,
+            "data" => [
+                "username" => $user['username'],
+                "avatar" => $user['avatar'], // nama file saja
+                "bio" => $user['bio'] ?? "-",
+                "total_post" => $totalArtwork
+            ]
+        ]);
+    }
 }

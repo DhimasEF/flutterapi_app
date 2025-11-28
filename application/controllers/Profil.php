@@ -32,9 +32,13 @@ class Profil extends CI_Controller {
             'email' => $data['email'] ?? null,
             'name' => $data['name'] ?? null,
             'bio' => $data['bio'] ?? null,
-            'avatar' => $data['avatar'] ?? null,
             'updated_at' => date('Y-m-d H:i:s')
         ];
+
+        // Hanya update avatar jika ADA di request
+        if (isset($data['avatar'])) {
+            $updateData['avatar'] = $data['avatar'];
+        }
 
         $update = $this->M_user->update_user($id_user, $updateData);
 

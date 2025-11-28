@@ -174,13 +174,10 @@ class M_Artwork extends CI_Model {
     // UPDATE STATUS (Admin Approve/Reject)
     // ======================================================
     public function update_status($id, $status) {
-        return $this->db->update(
-            'artworks',
-            ["status" => $status],
-            ["id_artwork" => $id]
-        );
+        $this->db->where('id_artwork', $id);
+        return $this->db->update('artworks', ["status" => $status]);
     }
-
+    
     // ======================================================
     // Helper: attach images and tags to artwork list
     // ======================================================

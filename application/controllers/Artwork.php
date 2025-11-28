@@ -201,34 +201,33 @@ class Artwork extends CI_Controller {
         ]);
     }
 
-    // -------------------------
-    // 4. Admin Approve
-    // -------------------------
-    public function approve() {
+    public function updateStatus() {
         $id = $this->input->post('id_artwork');
-        if (!$id) {
-            echo json_encode(["success" => false, "message" => "ID artwork kosong"]);
+        $status = $this->input->post('status');
+
+        if (!$id || !$status) {
+            echo json_encode([
+                "status" => false, 
+                "message" => "ID atau status tidak boleh kosong"
+            ]);
             return;
         }
 
-        $this->M_Artwork->update_status($id, "approved");
-
-        echo json_encode(["success" => true, "message" => "Approved"]);
-    }
-
-    // -------------------------
-    // 5. Admin Reject
-    // -------------------------
-    public function reject() {
-        $id = $this->input->post('id_artwork');
-        if (!$id) {
-            echo json_encode(["success" => false, "message" => "ID artwork kosong"]);
+        // Validasi agar tidak sembarang status
+        $allowed = ["approved", "rejected", "published", "draft"];
+        if (!in_array($status, $allowed)) {
+            echo json_encode([
+                "status" => false,
+                "message" => "Status tidak valid"
+            ]);
             return;
         }
 
-        $this->M_Artwork->update_status($id, "rejected");
+        $this->M_Artwork->update_status($id, $status);
 
-        echo json_encode(["success" => true, "message" => "Rejected"]);
+        echo json_encode([
+            "status" => true,
+            "message" => "Status updated to $status"
+        ]);
     }
-
 }
