@@ -245,4 +245,10 @@ class M_Artwork extends CI_Model {
 
         return $result;
     }
+
+    public function set_sold($id_artwork) {
+        return $this->db->where('id_artwork', $id_artwork)
+                        ->update('artworks', ['status' => 'sold']);
+    }
+
 }
