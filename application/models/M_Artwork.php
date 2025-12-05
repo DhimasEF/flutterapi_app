@@ -38,7 +38,7 @@ class M_Artwork extends CI_Model {
             u.avatar,
 
             ai.id_image AS image_id,
-            ai.image_url,
+            ai.preview_url,
 
             atm.id_tag,
             at.tag_name
@@ -72,7 +72,7 @@ class M_Artwork extends CI_Model {
             u.avatar,
 
             ai.id_image AS image_id,
-            ai.image_url,
+            ai.preview_url,
 
             atm.id_tag,
             at.tag_name
@@ -89,12 +89,40 @@ class M_Artwork extends CI_Model {
         $this->db->join('artwork_tags at', 'at.id_tag = atm.id_tag', 'left');
 
         $this->db->where('a.status', 'published');
+        $this->db->or_where('a.status', 'sold');
         $this->db->order_by('a.created_at', 'DESC');
 
         $artworks = $this->db->get()->result_array();
 
         return $this->attach_images_and_tags($artworks);
     }
+
+    public function get_all_admin() {
+        $this->db->select('
+            a.*,
+            u.username,
+            u.avatar,
+            ai.id_image AS image_id,
+            ai.preview_url,
+            atm.id_tag,
+            at.tag_name
+        ');
+        $this->db->from('artworks a');
+        $this->db->join('users u', 'u.id_user = a.id_user');
+        $this->db->join('artwork_images ai', 'ai.id_artwork = a.id_artwork', 'left');
+        $this->db->join('artwork_tag_map atm', 'atm.id_artwork = a.id_artwork', 'left');
+        $this->db->join('artwork_tags at', 'at.id_tag = atm.id_tag', 'left');
+
+        // 🚫 HAPUS filter published-sold
+        // $this->db->where('a.status', 'published');
+        // $this->db->or_where('a.status', 'sold');
+
+        $this->db->order_by('a.created_at', 'DESC');
+        $artworks = $this->db->get()->result_array();
+
+        return $this->attach_images_and_tags($artworks);
+    }
+
 
     // ======================================================
     // GET MY ARTWORK
@@ -106,7 +134,7 @@ class M_Artwork extends CI_Model {
             u.avatar,
 
             ai.id_image AS image_id,
-            ai.image_url,
+            ai.preview_url,
 
             atm.id_tag,
             at.tag_name
@@ -215,7 +243,7 @@ class M_Artwork extends CI_Model {
                 if (!isset($temp[$id]['images'][$imgKey])) {
                     $temp[$id]['images'][$imgKey] = [
                         'image_id' => $row['image_id'],
-                        'image_url' => $row['image_url']
+                        'image_url' => $row['preview_url']
                     ];
                 }
             }

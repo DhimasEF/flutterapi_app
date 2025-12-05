@@ -16,6 +16,14 @@ class Artwork extends CI_Controller {
         ]);
     }
 
+    public function all_admin() {
+        $data = $this->M_Artwork->get_all_admin();
+        echo json_encode([
+            "success" => true,
+            "data" => $data
+        ]);
+    }
+
     public function draft() {
         $data = $this->M_Artwork->get_draft();
         echo json_encode([
@@ -29,18 +37,14 @@ class Artwork extends CI_Controller {
     // -------------------------
     public function upload()
     {
-        // MATIKAN SEMUA OUTPUT YANG BIKIN HTML BOCOR
+        // MATIKAN OUTPUT HTML
         @ob_end_clean();
         ob_clean();
-        error_reporting(0);
-        ini_set('display_errors', 0);
-
-        // HEADER WAJIB JSON
         header('Content-Type: application/json; charset=utf-8');
+        error_reporting(E_ALL);
+        ini_set('display_errors', 1);
 
-        // --- DEBUG LOG (AMAN TIDAK DIKIRIM KE FLUTTER) ---
-        // file_put_contents("debug_upload.txt", print_r($_FILES, true));
-
+        // Ambil input
         $id_user     = $this->input->post('id_user');
         $title       = $this->input->post('title');
         $description = $this->input->post('description');
@@ -52,31 +56,27 @@ class Artwork extends CI_Controller {
             exit;
         }
 
+        // Path penyimpanan
+        $originalPath = "./uploads/artworks/original/";
+        $previewPath  = "./uploads/artworks/preview/";
+
+        if (!is_dir($originalPath)) mkdir($originalPath, 0777, true);
+        if (!is_dir($previewPath)) mkdir($previewPath, 0777, true);
+
         $uploadedFiles = [];
 
-        // --- HANDLE UPLOAD GAMBAR ---
+        // --- UPLOAD GAMBAR ---
         if (!empty($_FILES['images'])) {
 
             $files = $_FILES['images'];
 
-            // SINGLE FILE UPLOAD
+            // SINGLE UPLOAD
             if (!is_array($files['name'])) {
-
                 $_FILES['temp'] = $files;
+                $fileName = $this->processSingleUpload('temp', $originalPath, $previewPath);
+                if ($fileName) $uploadedFiles[] = $fileName;
 
-                $config = [
-                    'upload_path'   => './uploads/artworks/',
-                    'allowed_types' => 'jpg|jpeg|png|webp',
-                    'encrypt_name'  => TRUE
-                ];
-
-                $this->load->library('upload', $config);
-
-                if ($this->upload->do_upload('temp')) {
-                    $uploadedFiles[] = $this->upload->data('file_name');
-                }
-
-            } else {
+            } else { 
 
                 // MULTIPLE UPLOAD
                 $count = count($files['name']);
@@ -91,22 +91,12 @@ class Artwork extends CI_Controller {
                         'size'     => $files['size'][$i]
                     ];
 
-                    $config = [
-                        'upload_path'   => './uploads/artworks/',
-                        'allowed_types' => 'jpg|jpeg|png|webp',
-                        'encrypt_name'  => TRUE
-                    ];
-
-                    $this->load->library('upload', $config);
-
-                    if ($this->upload->do_upload('temp')) {
-                        $uploadedFiles[] = $this->upload->data('file_name');
-                    }
+                    $fileName = $this->processSingleUpload('temp', $originalPath, $previewPath);
+                    if ($fileName) $uploadedFiles[] = $fileName;
                 }
             }
         }
 
-        // Jika tidak ada file yg berhasil
         if (empty($uploadedFiles)) {
             echo json_encode([
                 "status" => false,
@@ -128,11 +118,12 @@ class Artwork extends CI_Controller {
         $this->db->insert("artworks", $dataArtwork);
         $id_artwork = $this->db->insert_id();
 
-        // INSERT IMAGES
-        foreach ($uploadedFiles as $fileName) {
+        // INSERT IMAGES (dengan preview)
+        foreach ($uploadedFiles as $file) {
             $this->db->insert("artwork_images", [
-                "id_artwork" => $id_artwork,
-                "image_url"  => $fileName
+                "id_artwork"  => $id_artwork,
+                "image_url"   => $file["original"],
+                "preview_url" => $file["preview"]
             ]);
         }
 
@@ -140,9 +131,7 @@ class Artwork extends CI_Controller {
         if (is_array($tags)) {
             foreach ($tags as $tagName) {
 
-                $tag = $this->db
-                    ->get_where("artwork_tags", ["tag_name" => $tagName])
-                    ->row();
+                $tag = $this->db->get_where("artwork_tags", ["tag_name" => $tagName])->row();
 
                 if (!$tag) {
                     $this->db->insert("artwork_tags", ["tag_name" => $tagName]);
@@ -158,7 +147,6 @@ class Artwork extends CI_Controller {
             }
         }
 
-        // FINAL RESPONSE — PURE JSON
         echo json_encode([
             "status"     => true,
             "message"    => "Artwork uploaded successfully",
@@ -168,6 +156,54 @@ class Artwork extends CI_Controller {
         exit;
     }
 
+    private function processSingleUpload($fileInput, $originalPath, $previewPath)
+    {
+        $config = [
+            'upload_path'   => $originalPath,
+            'allowed_types' => 'jpg|jpeg|png|webp',
+            'encrypt_name'  => TRUE
+        ];
+
+        $this->load->library('upload', $config);
+
+        if (!$this->upload->do_upload($fileInput)) {
+            return false;
+        }
+
+        $data = $this->upload->data();
+        $originalFile = $data['file_name'];
+
+        // PREVIEW GENERATION
+        $previewName = pathinfo($originalFile, PATHINFO_FILENAME) . "_preview.jpg";
+        $previewFile = $previewPath . $previewName;
+
+        $this->generatePreview($originalPath . $originalFile, $previewFile);
+
+        return [
+            "original" => $originalFile,
+            "preview"  => $previewName
+        ];
+    }
+
+    private function generatePreview($source, $destination)
+    {
+        list($width, $height) = getimagesize($source);
+
+        $newWidth = 350; // ukuran preview
+        $newHeight = intval(($newWidth / $width) * $height);
+
+        $src = imagecreatefromstring(file_get_contents($source));
+        $tmp = imagecreatetruecolor($newWidth, $newHeight);
+
+        imagecopyresampled($tmp, $src, 0, 0, 0, 0,
+            $newWidth, $newHeight, $width, $height
+        );
+
+        imagejpeg($tmp, $destination, 70); // kualitas 70% → kecil tapi jelas
+
+        imagedestroy($tmp);
+        imagedestroy($src);
+    }
 
     public function my($id_user) {
         $data = $this->M_Artwork->get_by_user($id_user);
