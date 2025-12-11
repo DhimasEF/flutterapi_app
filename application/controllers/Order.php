@@ -138,20 +138,28 @@ class Order extends CI_Controller {
         $id_order = $this->input->get('id_order');
 
         if (!$id_order) {
-            echo json_encode(["error" => true, "message" => "id_order required"]);
+            echo json_encode([
+                'status' => false,
+                'message' => 'id_order tidak boleh kosong',
+                'data' => []
+            ]);
             return;
         }
 
-        $order = $this->M_Order->get_order_detail($id_order);
+        $orders = $this->M_Order->get_order_detail($id_order);
 
-        if (!$order) {
-            echo json_encode(["error" => true, "message" => "Order not found"]);
-            return;
+        // Parse images
+        foreach ($orders as &$order) {
+            if (!empty($order['images'])) {
+                $order['images'] = explode(",", $order['images']);
+            } else {
+                $order['images'] = [];
+            }
         }
 
         echo json_encode([
-            "error" => false,
-            "order" => $order
+            'status' => true,
+            'data' => $orders
         ]);
     }
 
